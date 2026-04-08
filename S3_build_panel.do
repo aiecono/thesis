@@ -179,7 +179,7 @@ bysort unique_plot_id: gen _n_waves = (wave != wave[_n-1]) + (wave != wave[_n+1]
 capture drop _n_waves
 tempvar nwave
 bysort unique_plot_id (wave): gen `nwave' = wave[_N] != wave[1]
-qui count if `nwave'
+capture count if `nwave'
 di "  Plots in >1 wave: " r(N) " (" string(100*r(N)/_N, "%4.1f") "%)"
 
 
