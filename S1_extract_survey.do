@@ -23,33 +23,6 @@ global SCRIPTS "$BASE/Scripts"
 * HELPER PROGRAMS
 * ============================================================================
 
-/*  nan_aware_sum  <newvar> = <v1> <v2> ... <vN>
-    Equivalent to Python's .sum(axis=1, min_count=1):
-    If ALL components are missing → newvar = .
-    Otherwise → sum of non-missing components.
-    Usage: nan_aware_sum labor_total = hired_men hired_women hired_child
-*/
-cap program drop nan_aware_sum
-program define nan_aware_sum
-    * Usage: nan_aware_sum newvar, inputs(var1 var2 var3)
-    * Equivalent to pandas .sum(axis=1, min_count=1):
-    *   all missing  → newvar = .
-    *   otherwise    → sum of non-missing components
-    syntax newvarname, inputs(varlist)
-    * NOTE: `varlist' holds the new variable name; `inputs' is a standard option
-    local nvars : word count `inputs'
-    tempvar running_sum nmiss
-    gen double `running_sum' = 0
-    gen double `nmiss'       = 0
-    foreach v of local inputs {
-        replace `running_sum' = `running_sum' + cond(mi(`v'), 0, `v')
-        replace `nmiss'       = `nmiss' + mi(`v')
-    }
-    gen double `varlist' = `running_sum'
-    replace `varlist' = . if `nmiss' == `nvars'
-end
-
-
 /*  hh_member_labor_days  <newvar>  <stub>
     Compute household-member labor days from wide-format columns:
     <stub>_a (member id), <stub>_b (weeks), <stub>_c (days/week),
@@ -112,7 +85,7 @@ program define compute_hired_labor
     gen `hired_men' = `num_men' * `day_men'
     gen `hired_wom' = `num_wom' * `day_wom'
     gen `hired_chi' = `num_chi' * `day_chi'
-    nan_aware_sum `varlist', inputs(`hired_men' `hired_wom' `hired_chi')
+    egen `varlist' = rowtotal(`hired_men' `hired_wom' `hired_chi'), missing
 end
 
 
@@ -132,7 +105,7 @@ program define compute_exchange_labor
     gen `exch_men' = `num_men' * `day_men'
     gen `exch_wom' = `num_wom' * `day_wom'
     gen `exch_chi' = `num_chi' * `day_chi'
-    nan_aware_sum `varlist', inputs(`exch_men' `exch_wom' `exch_chi')
+    egen `varlist' = rowtotal(`exch_men' `exch_wom' `exch_chi'), missing
 end
 
 
@@ -150,10 +123,7 @@ assert r(unique_value) == _N, rc0  /* every plot×crop should be unique */
 * Harvest quantity: kg + grams (NaN-aware)
 gen _harv_kg  = ph_s9q12_a
 gen _harv_g   = ph_s9q12_b / 1000
-gen harvest_kg = .
-replace harvest_kg = cond(mi(_harv_kg), 0, _harv_kg) + ///
-                     cond(mi(_harv_g),  0, _harv_g)  ///
-    if !mi(_harv_kg) | !mi(_harv_g)
+egen harvest_kg = rowtotal(_harv_kg _harv_g), missing
 drop _harv_kg _harv_g
 
 * Harvest months
@@ -238,14 +208,7 @@ gen irrig_source   = pp_s3q13
 gen urea_kg = pp_s3q16_c
 gen dap_kg  = pp_s3q19_a
 * NaN-aware total: missing only if BOTH urea AND dap are missing
-gen total_fertilizer_kg = 0
-gen _fert_answered = 0
-replace total_fertilizer_kg = total_fertilizer_kg + urea_kg if !mi(urea_kg)
-replace _fert_answered = 1 if !mi(urea_kg)
-replace total_fertilizer_kg = total_fertilizer_kg + dap_kg  if !mi(dap_kg)
-replace _fert_answered = 1 if !mi(dap_kg)
-replace total_fertilizer_kg = . if _fert_answered == 0
-drop _fert_answered
+egen total_fertilizer_kg = rowtotal(urea_kg dap_kg), missing
 gen nps_kg = .   /* NPS not available in W1 */
 
 * Other inputs
@@ -268,7 +231,7 @@ compute_exchange_labor labor_exchange_plant, ///
     num_wom(pp_s3q29_c) day_wom(pp_s3q29_d) ///
     num_chi(pp_s3q29_e) day_chi(pp_s3q29_f)
 
-nan_aware_sum labor_total_plant = labor_hh_plant labor_hired_plant labor_exchange_plant
+egen labor_total_plant = rowtotal(labor_hh_plant labor_hired_plant labor_exchange_plant), missing
 
 keep $KEYS_W1 region zone woreda ///
      plot_area_raw area_unit_code plot_area_sqm plot_ha ///
@@ -296,7 +259,7 @@ compute_exchange_labor labor_exchange_harvest, ///
     num_wom(ph_s10q03_c) day_wom(ph_s10q03_d) ///
     num_chi(ph_s10q03_e) day_chi(ph_s10q03_f)
 
-nan_aware_sum labor_total_harvest = labor_hired_harvest labor_hh_harvest labor_exchange_harvest
+egen labor_total_harvest = rowtotal(labor_hired_harvest labor_hh_harvest labor_exchange_harvest), missing
 
 * Collapse to plot level (sect10 can have multiple rows per plot in some waves)
 collapse (sum) labor_hired_harvest labor_hh_harvest labor_exchange_harvest labor_total_harvest, ///
@@ -408,14 +371,7 @@ gen irrig_source   = pp_s3q13
 * W2 UREA = pp_s3q16_a, W2 DAP = pp_s3q19_a
 gen urea_kg = pp_s3q16_a
 gen dap_kg  = pp_s3q19_a
-gen total_fertilizer_kg = 0
-gen _fert_answered = 0
-replace total_fertilizer_kg = total_fertilizer_kg + urea_kg if !mi(urea_kg)
-replace _fert_answered = 1 if !mi(urea_kg)
-replace total_fertilizer_kg = total_fertilizer_kg + dap_kg  if !mi(dap_kg)
-replace _fert_answered = 1 if !mi(dap_kg)
-replace total_fertilizer_kg = . if _fert_answered == 0
-drop _fert_answered
+egen total_fertilizer_kg = rowtotal(urea_kg dap_kg), missing
 gen nps_kg = .
 
 gen manure_use  = (pp_s3q21 == 1) if !mi(pp_s3q21)
@@ -431,7 +387,7 @@ compute_exchange_labor labor_exchange_plant, ///
     num_men(pp_s3q29_a) day_men(pp_s3q29_b) ///
     num_wom(pp_s3q29_c) day_wom(pp_s3q29_d) ///
     num_chi(pp_s3q29_e) day_chi(pp_s3q29_f)
-nan_aware_sum labor_total_plant = labor_hh_plant labor_hired_plant labor_exchange_plant
+egen labor_total_plant = rowtotal(labor_hh_plant labor_hired_plant labor_exchange_plant), missing
 
 keep $KEYS_W23 region zone woreda ///
      plot_area_raw area_unit_code plot_area_sqm plot_ha ///
@@ -454,7 +410,7 @@ compute_exchange_labor labor_exchange_harvest, ///
     num_men(ph_s10q03_a) day_men(ph_s10q03_b) ///
     num_wom(ph_s10q03_c) day_wom(ph_s10q03_d) ///
     num_chi(ph_s10q03_e) day_chi(ph_s10q03_f)
-nan_aware_sum labor_total_harvest = labor_hired_harvest labor_hh_harvest labor_exchange_harvest
+egen labor_total_harvest = rowtotal(labor_hired_harvest labor_hh_harvest labor_exchange_harvest), missing
 collapse (sum) labor_hired_harvest labor_hh_harvest labor_exchange_harvest labor_total_harvest, ///
     by($KEYS_W23)
 tempfile w2_labor
@@ -529,10 +485,7 @@ gen crop_damage_pct_pre   = pp_s4q10
 capture {
     gen _seed_kg = pp_s4q11b_a
     gen _seed_g  = pp_s4q11b_b / 1000
-    gen seed_qty_kg = .
-    replace seed_qty_kg = cond(mi(_seed_kg), 0, _seed_kg) + ///
-                          cond(mi(_seed_g),  0, _seed_g)  ///
-        if !mi(_seed_kg) | !mi(_seed_g)
+    egen seed_qty_kg = rowtotal(_seed_kg _seed_g), missing
     drop _seed_kg _seed_g
 }
 if _rc != 0 gen seed_qty_kg = .
@@ -568,16 +521,7 @@ gen irrig_source   = pp_s3q13
 gen urea_kg = pp_s3q16
 gen dap_kg  = pp_s3q19
 gen nps_kg  = pp_s3q20a_2     /* NPS: W3 only */
-gen total_fertilizer_kg = 0
-gen _fert_answered = 0
-replace total_fertilizer_kg = total_fertilizer_kg + urea_kg if !mi(urea_kg)
-replace _fert_answered = 1 if !mi(urea_kg)
-replace total_fertilizer_kg = total_fertilizer_kg + dap_kg  if !mi(dap_kg)
-replace _fert_answered = 1 if !mi(dap_kg)
-replace total_fertilizer_kg = total_fertilizer_kg + nps_kg  if !mi(nps_kg)
-replace _fert_answered = 1 if !mi(nps_kg)
-replace total_fertilizer_kg = . if _fert_answered == 0
-drop _fert_answered
+egen total_fertilizer_kg = rowtotal(urea_kg dap_kg nps_kg), missing
 
 gen manure_use  = (pp_s3q21 == 1) if !mi(pp_s3q21)
 gen compost_use = (pp_s3q23 == 1) if !mi(pp_s3q23)
@@ -592,7 +536,7 @@ compute_exchange_labor labor_exchange_plant, ///
     num_men(pp_s3q29_a) day_men(pp_s3q29_b) ///
     num_wom(pp_s3q29_c) day_wom(pp_s3q29_d) ///
     num_chi(pp_s3q29_e) day_chi(pp_s3q29_f)
-nan_aware_sum labor_total_plant = labor_hh_plant labor_hired_plant labor_exchange_plant
+egen labor_total_plant = rowtotal(labor_hh_plant labor_hired_plant labor_exchange_plant), missing
 
 keep $KEYS_W23 region zone woreda ///
      plot_area_raw area_unit_code plot_area_sqm plot_ha ///
@@ -615,7 +559,7 @@ compute_exchange_labor labor_exchange_harvest, ///
     num_men(ph_s10q03_a) day_men(ph_s10q03_b) ///
     num_wom(ph_s10q03_c) day_wom(ph_s10q03_d) ///
     num_chi(ph_s10q03_e) day_chi(ph_s10q03_f)
-nan_aware_sum labor_total_harvest = labor_hired_harvest labor_hh_harvest labor_exchange_harvest
+egen labor_total_harvest = rowtotal(labor_hired_harvest labor_hh_harvest labor_exchange_harvest), missing
 collapse (sum) labor_hired_harvest labor_hh_harvest labor_exchange_harvest labor_total_harvest, ///
     by($KEYS_W23)
 tempfile w3_labor
