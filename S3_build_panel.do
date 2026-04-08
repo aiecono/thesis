@@ -44,14 +44,26 @@ tab wave
 * Convert numeric IDs to zero-padded strings before any join or filter.
 * Stata's %14.0f format forces 14-digit output, eliminating 1.23e+13 issues.
 
-* W1: household_id → 14-digit string
-gen str20 hh_id_str_w1 = ""
-replace hh_id_str_w1 = string(household_id, "%14.0f") if wave == 1
+* W1: household_id
+capture confirm string variable household_id
+if _rc == 0 {
+    gen hh_id_str_w1 = household_id if wave == 1
+}
+else {
+    gen str20 hh_id_str_w1 = ""
+    replace hh_id_str_w1 = string(household_id, "%14.0f") if wave == 1
+}
 replace hh_id_str_w1 = strtrim(hh_id_str_w1)
 
-* W2/W3: household_id2 → 18-digit string
-gen str20 hh_id_str_w23 = ""
-replace hh_id_str_w23 = string(household_id2, "%18.0f") if wave > 1
+* W2/W3: household_id2
+capture confirm string variable household_id2
+if _rc == 0 {
+    gen hh_id_str_w23 = household_id2 if wave > 1
+}
+else {
+    gen str20 hh_id_str_w23 = ""
+    replace hh_id_str_w23 = string(household_id2, "%18.0f") if wave > 1
+}
 replace hh_id_str_w23 = strtrim(hh_id_str_w23)
 
 * Unified bridge ID for GPS merge (used in S4)
