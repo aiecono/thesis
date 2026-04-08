@@ -87,8 +87,8 @@ assert inlist(_merge, 1, 3)   /* no right-only: all geo HHs should be in harvest
 drop _merge
 
 * --- Plot geovariables (slope, soil, distance to HH) ---
+preserve
 capture {
-    preserve
     use "$W1/Pub_ETH_PlotGeovariables_Y1.dta", clear
     keep $KEYS_W1 plot_slope* dist_hh_to_plot* plot_soil*
     capture rename plot_slope1 plot_slope_pct
@@ -96,7 +96,10 @@ capture {
     duplicates drop $KEYS_W1, force
     tempfile w1_plotgeo
     save `w1_plotgeo'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 $KEYS_W1 using `w1_plotgeo', keep(1 3) nogen
     di "  W1 plot geo: merged"
 }
@@ -130,8 +133,8 @@ merge m:1 household_id using `w1_head', keep(1 3) ///
 merge m:1 household_id using `w1_size', keep(1 3) nogen
 
 * --- Consumption aggregate ---
+preserve
 capture {
-    preserve
     use "$W1/cons_agg_w1.dta", clear
     capture rename cons_per_adult_equiv cons_per_aeq
     foreach v in total_cons_ann cons_per_aeq {
@@ -141,7 +144,10 @@ capture {
     keep household_id total_cons_ann cons_per_aeq
     tempfile w1_cons
     save `w1_cons'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 household_id using `w1_cons', keep(1 3) nogen
 }
 
@@ -156,15 +162,18 @@ restore
 merge m:1 household_id using `w1_shock', keep(1 3) nogen
 
 * --- Assets (sect10_hh) ---
+preserve
 capture {
-    preserve
     use "$W1/sect10_hh_w1.dta", clear
     * Count distinct asset types the HH reports owning
     gen owns_asset = (hh_s10q01 == 1) if !mi(hh_s10q01)
     collapse (sum) n_assets = owns_asset, by(household_id)
     tempfile w1_assets
     save `w1_assets'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 household_id using `w1_assets', keep(1 3) nogen
 }
 
@@ -211,15 +220,18 @@ di "  W2 GPS coverage: " ///
 drop _merge
 
 * --- Plot geovariables ---
+preserve
 capture {
-    preserve
     use "$W2/Pub_ETH_PlotGeovariables_Y2.dta", clear
     capture rename plot_slope1 plot_slope_pct
     capture rename dist_hh_plot dist_hh_to_plot_km
     duplicates drop $KEYS_W23, force
     tempfile w2_plotgeo
     save `w2_plotgeo'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 $KEYS_W23 using `w2_plotgeo', keep(1 3) nogen
 }
 
@@ -249,13 +261,16 @@ merge m:1 household_id2 using `w2_head', keep(1 3) ///
 merge m:1 household_id2 using `w2_size', keep(1 3) nogen
 
 * --- Consumption ---
+preserve
 capture {
-    preserve
     use "$W2/cons_agg_w2.dta", clear
     keep household_id2 total_cons_ann cons_per_aeq
     tempfile w2_cons
     save `w2_cons'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 household_id2 using `w2_cons', keep(1 3) nogen
 }
 
@@ -270,14 +285,17 @@ restore
 merge m:1 household_id2 using `w2_shock', keep(1 3) nogen
 
 * --- Assets ---
+preserve
 capture {
-    preserve
     use "$W2/sect10_hh_w2.dta", clear
     gen owns_asset = (hh_s10q01 == 1) if !mi(hh_s10q01)
     collapse (sum) n_assets = owns_asset, by(household_id2)
     tempfile w2_assets
     save `w2_assets'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 household_id2 using `w2_assets', keep(1 3) nogen
 }
 
@@ -324,15 +342,18 @@ di "  W3 GPS coverage: " ///
 drop _merge
 
 * --- Plot geovariables ---
+preserve
 capture {
-    preserve
     use "$W3GV/ETH_PlotGeovariables_y3.dta", clear
     capture rename plot_slope1 plot_slope_pct
     capture rename dist_hh_plot dist_hh_to_plot_km
     duplicates drop $KEYS_W23, force
     tempfile w3_plotgeo
     save `w3_plotgeo'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 $KEYS_W23 using `w3_plotgeo', keep(1 3) nogen
 }
 
@@ -365,13 +386,16 @@ merge m:1 household_id2 using `w3_head', keep(1 3) ///
 merge m:1 household_id2 using `w3_size', keep(1 3) nogen
 
 * --- Consumption ---
+preserve
 capture {
-    preserve
     use "$DATA/ETH_2015_ESS_v03_M_STATA/cons_agg_w3.dta", clear
     keep household_id2 total_cons_ann cons_per_aeq
     tempfile w3_cons
     save `w3_cons'
-    restore
+}
+local rc = _rc
+restore
+if `rc' == 0 {
     merge m:1 household_id2 using `w3_cons', keep(1 3) nogen
 }
 
