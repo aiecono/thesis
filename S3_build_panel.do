@@ -166,10 +166,15 @@ foreach v in region zone woreda area_unit_code {
 * ============================================================================
 * Concatenate household_id + parcel_id + field_id.
 * Use holder_id too when available to handle multiple holders per HH.
-gen str60 unique_plot_id = hh_id_str_w1 + "_" + ///
-    string(holder_id, "%6.0f") + "_" + ///
-    string(parcel_id, "%4.0f") + "_" + ///
-    string(field_id,  "%4.0f")
+foreach v in holder_id parcel_id field_id {
+    capture tostring `v', replace force
+    capture replace `v' = strtrim(`v')
+}
+
+gen str60 unique_plot_id = household_id_merge + "_" + ///
+    holder_id + "_" + ///
+    parcel_id + "_" + ///
+    field_id
 
 replace unique_plot_id = strtrim(stritrim(unique_plot_id))
 
