@@ -178,6 +178,10 @@ if `rc' == 0 {
 }
 
 di "W1 checkpoint:"
+foreach v in lat lon elevation_m annual_precip_mm head_age hh_size total_cons_ann drought_shock {
+    capture confirm variable `v'
+    if _rc != 0 gen `v' = .
+}
 tabstat lat lon elevation_m annual_precip_mm head_age hh_size ///
         total_cons_ann drought_shock, stat(n mean) col(stat)
 
@@ -300,6 +304,10 @@ if `rc' == 0 {
 }
 
 di "W2 checkpoint:"
+foreach v in lat lon elevation_m annual_precip_mm head_age hh_size total_cons_ann drought_shock {
+    capture confirm variable `v'
+    if _rc != 0 gen `v' = .
+}
 tabstat lat lon elevation_m annual_precip_mm head_age hh_size ///
         total_cons_ann drought_shock, stat(n mean) col(stat)
 
@@ -414,6 +422,10 @@ gen n_assets = .
 di "  Note: W3 has no asset file — n_assets set to missing (expected)"
 
 di "W3 checkpoint:"
+foreach v in lat lon elevation_m annual_precip_mm head_age hh_size total_cons_ann drought_shock {
+    capture confirm variable `v'
+    if _rc != 0 gen `v' = .
+}
 tabstat lat lon elevation_m annual_precip_mm head_age hh_size ///
         total_cons_ann drought_shock, stat(n mean) col(stat)
 
