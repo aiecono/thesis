@@ -44,14 +44,26 @@ tab wave
 * Convert numeric IDs to zero-padded strings before any join or filter.
 * Stata's %14.0f format forces 14-digit output, eliminating 1.23e+13 issues.
 
-* W1: household_id → 14-digit string
-gen str20 hh_id_str_w1 = ""
-replace hh_id_str_w1 = string(household_id, "%14.0f") if wave == 1
+* W1: household_id
+capture confirm string variable household_id
+if _rc == 0 {
+    gen hh_id_str_w1 = household_id if wave == 1
+}
+else {
+    gen str20 hh_id_str_w1 = ""
+    replace hh_id_str_w1 = string(household_id, "%14.0f") if wave == 1
+}
 replace hh_id_str_w1 = strtrim(hh_id_str_w1)
 
-* W2/W3: household_id2 → 18-digit string
-gen str20 hh_id_str_w23 = ""
-replace hh_id_str_w23 = string(household_id2, "%18.0f") if wave > 1
+* W2/W3: household_id2
+capture confirm string variable household_id2
+if _rc == 0 {
+    gen hh_id_str_w23 = household_id2 if wave > 1
+}
+else {
+    gen str20 hh_id_str_w23 = ""
+    replace hh_id_str_w23 = string(household_id2, "%18.0f") if wave > 1
+}
 replace hh_id_str_w23 = strtrim(hh_id_str_w23)
 
 * Unified bridge ID for GPS merge (used in S4)
@@ -154,10 +166,7 @@ foreach v in region zone woreda area_unit_code {
 * ============================================================================
 * Concatenate household_id + parcel_id + field_id.
 * Use holder_id too when available to handle multiple holders per HH.
-gen str60 unique_plot_id = hh_id_str_w1 + "_" + ///
-    string(holder_id, "%6.0f") + "_" + ///
-    string(parcel_id, "%4.0f") + "_" + ///
-    string(field_id,  "%4.0f")
+egen unique_plot_id = concat(household_id_merge holder_id parcel_id field_id), punct(_)
 
 replace unique_plot_id = strtrim(stritrim(unique_plot_id))
 
@@ -170,7 +179,7 @@ bysort unique_plot_id: gen _n_waves = (wave != wave[_n-1]) + (wave != wave[_n+1]
 capture drop _n_waves
 tempvar nwave
 bysort unique_plot_id (wave): gen `nwave' = wave[_N] != wave[1]
-qui count if `nwave'
+capture count if `nwave'
 di "  Plots in >1 wave: " r(N) " (" string(100*r(N)/_N, "%4.1f") "%)"
 
 
